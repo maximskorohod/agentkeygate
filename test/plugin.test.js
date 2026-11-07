@@ -87,10 +87,22 @@ test('README плагина: не короче 40 слов, команды ус�
   assert.ok(readme.includes('claude plugin install agentkeygate@agentkeygate'));
 });
 
-test('копия навыка в плагине совпадает побайтно с skills/agentkeygate', () => {
-  const same = (a, b) => fs.readFileSync(path.join(root, a)).equals(fs.readFileSync(path.join(root, b)));
-  assert.ok(same('skills/agentkeygate/SKILL.md', 'plugins/agentkeygate/skills/agentkeygate/SKILL.md'), 'SKILL.md');
-  assert.ok(same('skills/agentkeygate/scripts/gw.sh', 'plugins/agentkeygate/skills/agentkeygate/scripts/gw.sh'), 'gw.sh');
+// Каталог Anthropic держит плагин, если навык читает ключ из окружения: в плагине навык работает только через MCP-инструменты
+test('навык плагина: то же имя и описание, только MCP-инструменты, без env и скриптов', () => {
+  const front = (t) => t.split('---')[1];
+  const pluginSkill = read('plugins/agentkeygate/skills/agentkeygate/SKILL.md');
+  assert.equal(front(pluginSkill), front(read('skills/agentkeygate/SKILL.md')), 'frontmatter совпадает');
+  for (const tool of ['list_services', 'request_access', 'check_request', 'call']) assert.ok(pluginSkill.includes(`\`${tool}\``), tool);
+  assert.ok(!/AGENTKEYGATE_(URL|TOKEN)|\$[A-Z_]{3,}|curl /.test(pluginSkill), 'нет переменных окружения и curl');
+  assert.ok(!fs.existsSync(path.join(root, 'plugins/agentkeygate/skills/agentkeygate/scripts')), 'нет scripts/ в плагине');
+});
+
+test('plugin.json: поля каталога (homepage, icon, privacyPolicyUrl) и иконка PNG на месте', () => {
+  const pl = json('plugins/agentkeygate/.claude-plugin/plugin.json');
+  for (const k of ['homepage', 'documentationUrl', 'supportUrl', 'privacyPolicyUrl']) assert.match(pl[k], /^https:\/\//, k);
+  const icon = fs.readFileSync(path.join(root, 'plugins/agentkeygate', pl.icon));
+  assert.ok(icon.subarray(1, 4).toString() === 'PNG', 'иконка PNG');
+  assert.ok(icon.readUInt32BE(16) >= 512 && icon.readUInt32BE(16) === icon.readUInt32BE(20), 'квадрат от 512 px');
 });
 
 // ---- Пакет 7: server.json для реестра MCP (публикацию выполняет заказчик) ----

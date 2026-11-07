@@ -1,6 +1,6 @@
 # AgentKeyGate plugin for Claude Code
 
-The plugin connects Claude Code to your self-hosted [AgentKeyGate](https://github.com/maximskorohod/agentkeygate) gateway over Streamable HTTP at `/mcp`. After the connection Claude Code sees the gateway tools: `list_services`, `request_access`, `check_request` and `call`. It asks for a time-limited pass instead of your API key, and the key itself never leaves the gateway. The plugin also ships the `agentkeygate` skill with step-by-step instructions and a helper script.
+The plugin connects Claude Code to your self-hosted [AgentKeyGate](https://github.com/maximskorohod/agentkeygate) gateway over Streamable HTTP at `/mcp`. After the connection Claude Code sees the gateway tools: `list_services`, `request_access`, `check_request` and `call`. It asks for a time-limited pass instead of your API key, and the key itself never leaves the gateway. The plugin also ships the `agentkeygate` skill with step-by-step instructions for these tools. The skill reads no environment variables or files: the address and the token come only from the plugin settings.
 
 ## Install
 

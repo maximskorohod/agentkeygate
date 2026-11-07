@@ -7,6 +7,11 @@
     "name": "maximskorohod"
   },
   "repository": "https://github.com/maximskorohod/agentkeygate",
+  "homepage": "https://agentkeygate.com",
+  "icon": "./.claude-plugin/icon.png",
+  "documentationUrl": "https://github.com/maximskorohod/agentkeygate#readme",
+  "supportUrl": "https://github.com/maximskorohod/agentkeygate/issues",
+  "privacyPolicyUrl": "https://agentkeygate.com/privacy/",
   "userConfig": {
     "mcp_url": {
       "type": "string",

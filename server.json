@@ -15,7 +15,7 @@
         "host": {
           "description": "Host of your AgentKeyGate gateway, for example gw.example.com",
           "isRequired": true,
-          "format": "hostname"
+          "format": "string"
         }
       },
       "headers": [
