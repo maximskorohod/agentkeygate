@@ -114,6 +114,7 @@ Agents that load [Agent Skills](https://agentskills.io) can use [skills/agentkey
 | Most clients (skills.sh) | `npx skills add maximskorohod/agentkeygate` |
 | Claude Code plugin | `claude plugin marketplace add maximskorohod/agentkeygate`, then `claude plugin install agentkeygate@agentkeygate` |
 | Manual | copy `skills/agentkeygate` into the client's skills folder, see [skills/agentkeygate/README.md](skills/agentkeygate/README.md) |
+| Hermes tap, MCP only | `hermes skills tap add maximskorohod/agentkeygate`, then install [skills/agentkeygate-mcp](skills/agentkeygate-mcp/SKILL.md): no scripts or environment variables, the agent works through the MCP server |
 
 ## Services
 

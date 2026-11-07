@@ -114,6 +114,7 @@ claude mcp add --transport http agentkeygate https://gw.example.com/mcp \
 | Большинство клиентов (skills.sh) | `npx skills add maximskorohod/agentkeygate` |
 | Плагин Claude Code | `claude plugin marketplace add maximskorohod/agentkeygate`, затем `claude plugin install agentkeygate@agentkeygate` |
 | Вручную | скопировать `skills/agentkeygate` в папку навыков клиента, см. [skills/agentkeygate/README.md](skills/agentkeygate/README.md) |
+| Tap Hermes, только MCP | `hermes skills tap add maximskorohod/agentkeygate`, затем установить [skills/agentkeygate-mcp](skills/agentkeygate-mcp/SKILL.md): без скриптов и переменных окружения, агент работает через MCP-сервер |
 
 ## Сервисы
 

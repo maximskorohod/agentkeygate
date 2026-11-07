@@ -37,6 +37,18 @@ test('SKILL.md: имя совпадает с папкой, описание не
   assert.ok(fs.existsSync(path.join(root, 'skills/agentkeygate/scripts/gw.sh')), 'хелпер gw.sh на месте');
 });
 
+// Навык только через MCP для хабов Hermes и ClawHub: их сканеры блокируют curl с токеном из env.
+test('skills/agentkeygate-mcp: имя совпадает с папкой, без скриптов, curl и переменных окружения', () => {
+  const skill = read('skills/agentkeygate-mcp/SKILL.md');
+  assert.match(skill, /^name: agentkeygate-mcp$/m);
+  const desc = skill.match(/^description:\s*(.+)$/m)?.[1] ?? '';
+  assert.ok(desc.length > 0 && desc.length <= 60, `описание ${desc.length} символов (лимит Hermes 60)`);
+  assert.deepEqual(fs.readdirSync(path.join(root, 'skills/agentkeygate-mcp')), ['SKILL.md'], 'только SKILL.md');
+  assert.doesNotMatch(skill, /\bcurl\b|\bwget\b|printenv|process\.env|os\.environ/, 'нет сетевых команд и чтения env');
+  assert.doesNotMatch(skill, /\$\{?[A-Z_]*(TOKEN|KEY|SECRET)/, 'нет подстановки секретов из env');
+  for (const t of ['list_services', 'request_access', 'check_request', 'call']) assert.ok(skill.includes('`' + t + '`'), t);
+});
+
 test('skills/agentkeygate/README.md: пути установки навыка и переменные окружения', () => {
   const sr = read('skills/agentkeygate/README.md');
   for (const p of ['~/.claude/skills', '~/.agents/skills', '~/.cursor/skills', '~/.copilot/skills', '~/.gemini/skills', '~/.hermes/skills']) {
