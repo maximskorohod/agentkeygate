@@ -196,6 +196,8 @@ export function createBot({ token, repo, requests, links, logger, signingKey, au
     }
     const botParam = repo.getOwner()?.tg_bot_param ?? null;
     repo.setTg(chatId, botParam);
+    // Остальные выданные коды больше не нужны: ни один не должен перепривязать Telegram после привязки
+    repo.revokeLinks('tg_link');
     await safeReply(chatId, t('bot.owner_ok'));
     // событие безопасности «привязан Telegram» (контракт уведомлений); сбой уведомления привязку не отменяет
     try { onLinked(); } catch (e) { logger.warn({ errCode: e?.code }, 'tg: link notification failed'); }

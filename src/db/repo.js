@@ -92,6 +92,7 @@ export function createRepo(db, { demo = false } = {}) {
       'UPDATE one_time_links SET used_at = unixepoch() ' +
         'WHERE token_hash = ? AND purpose = ? AND used_at IS NULL AND expires_at > unixepoch()',
     ),
+    revokeLinks: db.prepare('UPDATE one_time_links SET used_at = unixepoch() WHERE purpose = ? AND used_at IS NULL'),
 
     // credentials
     insCredential: db.prepare(
@@ -556,6 +557,10 @@ export function createRepo(db, { demo = false } = {}) {
     },
     consumeLink(tokenHash, purpose) {
       return st.consumeLink.run(tokenHash, purpose).changes === 1;
+    },
+    // Гасит все неиспользованные ссылки назначения: старый код привязки Telegram не должен жить рядом с новым
+    revokeLinks(purpose) {
+      return st.revokeLinks.run(purpose).changes;
     },
 
     // ---- credentials ----

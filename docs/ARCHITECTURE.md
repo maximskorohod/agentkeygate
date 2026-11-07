@@ -91,7 +91,7 @@ export function createRepo(db, { demo = false } = {}) => ({
   deletePending(sessionHash) /* -> bool: cancel, password/2FA change (logout and session close delete by cascade) */, purgePending(nowSec?) /* expired; -> n; called by a timer in app.js */,
   inTransaction(fn) /* db.transaction(fn).immediate(): fn is synchronous (no await), an exception rolls everything back; nested repo transactions become savepoints */,
   // one-time links
-  createLink(tokenHash, purpose, expiresAt), consumeLink(tokenHash, purpose) /* -> bool, one-time, atomic */,
+  createLink(tokenHash, purpose, expiresAt), consumeLink(tokenHash, purpose) /* -> bool, one-time, atomic */, revokeLinks(purpose) /* -> number; marks every unused link of the purpose as used */,
   // credentials
   createCredential(cred), getCredential(id) /* without deleted */, listCredentials(), updateCredentialPolicy(id, {mode, approval, max_ttl, max_calls, max_parallel, window, expires_at, always_until, label}),
   endExpiredAlways() /* mode='always' with always_until in the past -> 'ask'; -> Credential[] for notifications (called by expireLoop) */,

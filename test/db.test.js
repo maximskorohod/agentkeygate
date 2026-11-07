@@ -184,6 +184,20 @@ test('consumeLink: истёкшая ссылка → false', () => {
   assert.equal(repo.consumeLink('h-old', 'open'), false);
 });
 
+test('revokeLinks: гасит все неиспользованные ссылки своего назначения и не трогает чужие', () => {
+  const { repo, now } = setup();
+  repo.createLink('h-tg-a', 'tg_link', now() + 900);
+  repo.createLink('h-tg-b', 'tg_link', now() + 900);
+  repo.createLink('h-open', 'open', now() + 900);
+  assert.equal(repo.revokeLinks('tg_link'), 2);
+  assert.equal(repo.consumeLink('h-tg-a', 'tg_link'), false, 'старый код привязки Telegram больше не работает');
+  assert.equal(repo.consumeLink('h-tg-b', 'tg_link'), false);
+  assert.equal(repo.consumeLink('h-open', 'open'), true, 'ссылки другого назначения живы');
+  // Новый код после отзыва работает
+  repo.createLink('h-tg-c', 'tg_link', now() + 900);
+  assert.equal(repo.consumeLink('h-tg-c', 'tg_link'), true);
+});
+
 test('decideRequest меняет статус только из pending', () => {
   const { repo, now } = setup();
   repo.createAgent({ id: 'a1', name: 'агент-1', token_hash: 'th-a1' });

@@ -39,6 +39,38 @@ async function fakeTelegram(updates) {
 
 const msg = (id, chat, from, text) => ({ update_id: id, message: { message_id: id, date: 0, chat, from: { is_bot: false, first_name: 'x', ...from }, text, entities: text.startsWith('/') ? [{ type: 'bot_command', offset: 0, length: text.split(' ')[0].length }] : undefined } });
 
+test('привязка Telegram по коду гасит остальные выданные коды', async () => {
+  const revoked = [];
+  const tgSet = [];
+  const tg = await fakeTelegram([msg(1, { id: STRANGER, type: 'private' }, { id: STRANGER }, '/start GOODCODE')]);
+  const bot = createBot({
+    token: '123:test',
+    apiRoot: tg.apiRoot,
+    repo: {
+      listCredentials: () => [],
+      consumeLink: () => true,
+      revokeLinks: (p) => { revoked.push(p); return 1; },
+      setTg: (c) => tgSet.push(c),
+      getOwner: () => ({ tg_bot_param: null }),
+    },
+    requests: {},
+    links: {},
+    logger: { info() {}, warn() {}, error() {} },
+    signingKey: KEY,
+    auth: { getUser: () => null, getUserByTelegram: () => null },
+  });
+  try {
+    bot.start();
+    const deadline = Date.now() + 5000;
+    while (!tgSet.length && Date.now() < deadline) await new Promise((r) => setTimeout(r, 25));
+    assert.deepEqual(tgSet.map(Number), [STRANGER], 'привязка прошла');
+    assert.deepEqual(revoked, ['tg_link'], 'остальные коды отозваны после привязки');
+  } finally {
+    await bot.stop?.();
+    await tg.close?.();
+  }
+});
+
 test('П-8: бот отвечает только в личном чате владельца; группа, чужой чат и подмена from.id игнорируются', async () => {
   const consumed = [];
   const tgSet = [];

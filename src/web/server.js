@@ -237,6 +237,7 @@ export async function registerWeb(fastify, ctx) {
       await tg.check(token);
       await vault.put('sys/tg_bot', token);
       const bot = await tg.restart(token);
+      repo.revokeLinks('tg_link');
       const code = makeShortCode(repo, 'tg_link', 900);
       repo.setMeta('setup_tg_code', code);
       repo.setTg(null, 'sys/tg_bot');
@@ -247,7 +248,10 @@ export async function registerWeb(fastify, ctx) {
 
   // Код живёт 15 минут: без нового кода просроченная ссылка на бота стала бы тупиком, токен вводить заново не нужно
   function renewTgCode() {
-    if (repo.getMeta('setup_tg_code')) repo.setMeta('setup_tg_code', makeShortCode(repo, 'tg_link', 900));
+    if (!repo.getMeta('setup_tg_code')) return;
+    // Прежний код гасим: иначе он ещё 15 минут мог бы перепривязать Telegram к чужому чату
+    repo.revokeLinks('tg_link');
+    repo.setMeta('setup_tg_code', makeShortCode(repo, 'tg_link', 900));
   }
 
   /** Тест канала с общим таймаутом. -> null при успехе, иначе код ошибки без текста (в нём может быть путь вебхука). */
