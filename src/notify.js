@@ -117,8 +117,9 @@ function telegramChannel({ repo, getBot }) {
 }
 
 function slackChannel({ repo, vault, test }) {
-  async function post(msg) {
-    const chk = checkSlackWebhook(await vault.get('sys/slack_webhook'));
+  // candidate: адрес, который проверяют до сохранения; рабочий вебхук в сейфе при этом не меняется
+  async function post(msg, candidate) {
+    const chk = checkSlackWebhook(candidate ?? await vault.get('sys/slack_webhook'));
     if (!chk.ok) throw coded('not_configured');
     const u = new URL(chk.value);
     const body = slackPayload(msg);
@@ -147,8 +148,8 @@ function slackChannel({ repo, vault, test }) {
     buttons: false,
     enabled: () => readChannelMeta(repo, 'slack').enabled,
     events: () => readChannelMeta(repo, 'slack').events,
-    send: post,
-    test: () => post({ event: 'info', title: t('notify.test_title'), text: t('notify.test') }),
+    send: (msg) => post(msg),
+    test: (candidate) => post({ event: 'info', title: t('notify.test_title'), text: t('notify.test') }, candidate),
   };
 }
 

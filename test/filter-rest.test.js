@@ -416,6 +416,10 @@ test('сквозной: запись → 403 write_not_allowed, закрытый
   const denied = app.repo.listAudit({ limit: 50 }).filter((x) => x.action === 'proxy.denied');
   assert.ok(denied.length >= 1);
   assert.ok(denied.some((x) => JSON.parse(x.meta_json).denied_reason === 'write_not_allowed'));
+  // audit агрегирован за минуту, а «Активность» видит каждый из отказов
+  const gr = app.repo.getGrant(g.id);
+  const st = app.repo.callStats(1).find((x) => x.agent_id === gr.agent_id && x.credential_id === gr.credential_id);
+  assert.deepEqual([st.calls, st.errors], [cases.length, cases.length]);
 });
 
 test('сквозной: search с флагом доходит до сервиса, ответ режется полями типа; без флага — 403', async () => {

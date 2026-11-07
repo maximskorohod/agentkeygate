@@ -37,10 +37,11 @@ export const OWNER_USER_ID = 'owner';
 
 // Таблицы демо-сброса в порядке, допустимом для внешних ключей (дочерние раньше родительских)
 const DEMO_WIPE_TABLES = ['pending_actions', 'leases', 'grants', 'requests', 'agent_credentials', 'agents', 'credentials',
-  'sessions', 'backup_codes', 'totp_used', 'one_time_links', 'owner'];
+  'sessions', 'backup_codes', 'totp_used', 'one_time_links', 'owner', 'denied_counts'];
 
 /** opts.demo: методы demo* (в том числе demoWipe) существуют только в демо-режиме (GW_DEMO=1). */
 export function createRepo(db, { demo = false } = {}) {
+  let deniedWrites = 0;
   const st = {
     // meta
     getMeta: db.prepare('SELECT value FROM meta WHERE key = ?'),
@@ -160,17 +161,26 @@ export function createRepo(db, { demo = false } = {}) {
 
     // статистика для страницы «Запросы»
     // Вызовы, закрытые фильтром (proxy.denied), тоже считаются: это ошибка агента, владелец должен её видеть.
-    // Отказы пишутся с агрегацией: count в мете — сколько таких же отказов было пропущено перед записью.
+    // audit proxy.denied агрегируется (раз в минуту), поэтому отказы считаются по denied_counts: там каждый отказ.
     callStats: db.prepare(
-      `SELECT json_extract(meta_json, '$.agent') AS agent_id,
-              json_extract(meta_json, '$.credential') AS credential_id,
-              sum(CASE WHEN action = 'proxy.denied' THEN 1 + coalesce(json_extract(meta_json, '$.count'), 0) ELSE 1 END) AS calls,
-              sum(CASE WHEN action = 'proxy.denied' THEN 1 + coalesce(json_extract(meta_json, '$.count'), 0)
-                       WHEN coalesce(json_extract(meta_json, '$.status'), 0) BETWEEN 200 AND 399 THEN 0 ELSE 1 END) AS errors,
-              max(at) AS last_at
-       FROM audit WHERE action IN ('proxy.call', 'proxy.denied') AND at >= unixepoch() - @days * 86400
-       GROUP BY 1, 2`,
+      `SELECT agent_id, credential_id, sum(calls) AS calls, sum(errors) AS errors, max(last_at) AS last_at FROM (
+         SELECT json_extract(meta_json, '$.agent') AS agent_id,
+                json_extract(meta_json, '$.credential') AS credential_id,
+                1 AS calls,
+                CASE WHEN coalesce(json_extract(meta_json, '$.status'), 0) BETWEEN 200 AND 399 THEN 0 ELSE 1 END AS errors,
+                at AS last_at
+         FROM audit WHERE action = 'proxy.call' AND at >= unixepoch() - @days * 86400
+         UNION ALL
+         SELECT agent_id, credential_id, n, n, last_at
+         FROM denied_counts WHERE minute * 60 >= unixepoch() - @days * 86400
+       ) GROUP BY 1, 2`,
     ),
+    countDenied: db.prepare(
+      `INSERT INTO denied_counts (agent_id, credential_id, minute, n, last_at) VALUES (?, ?, unixepoch() / 60, 1, unixepoch())
+       ON CONFLICT (agent_id, credential_id, minute) DO UPDATE SET n = n + 1, last_at = excluded.last_at`,
+    ),
+    // Счётчику нужен самый длинный период «Активности» (30 дней) с запасом
+    pruneDenied: db.prepare('DELETE FROM denied_counts WHERE minute < unixepoch() / 60 - 40 * 1440'),
     requestStats: db.prepare(
       `SELECT agent_id, credential_id, count(*) AS total,
               sum(status = 'approved') AS approved, sum(status = 'denied') AS denied,
@@ -417,8 +427,9 @@ export function createRepo(db, { demo = false } = {}) {
       const grants = db.prepare(`DELETE FROM grants WHERE ${column} = ?`);
       const requests = db.prepare(`DELETE FROM requests WHERE ${column} = ?`);
       const bindings = db.prepare(`DELETE FROM agent_credentials WHERE ${column} = ?`);
+      const denied = db.prepare(`DELETE FROM denied_counts WHERE ${column} = ?`);
       const row = db.prepare(`DELETE FROM ${table} WHERE ${tableId} = ?`);
-      return db.transaction((id) => { for (const s of [leases, grants, requests, bindings, row]) s.run(id); });
+      return db.transaction((id) => { for (const s of [leases, grants, requests, bindings, denied, row]) s.run(id); });
     };
     const evictAgentTx = evict('agent_id', 'agents', 'id');
     const evictCredentialTx = evict('credential_id', 'credentials', 'id');
@@ -673,6 +684,11 @@ export function createRepo(db, { demo = false } = {}) {
     },
     requestStats(days) {
       return st.requestStats.all({ days: Number(days) });
+    },
+    /** +1 к счётчику вызовов, закрытых фильтром (каждый отказ, без агрегации audit). Раз в 1000 вызовов чистит записи старше 40 дней. */
+    countDenied(agentId, credentialId) {
+      st.countDenied.run(String(agentId), String(credentialId));
+      if (++deniedWrites % 1000 === 0) st.pruneDenied.run();
     },
     /** Число успешных (2xx) вызовов прокси за всё время: для экрана «It works» онбординга. */
     countOkCalls() {

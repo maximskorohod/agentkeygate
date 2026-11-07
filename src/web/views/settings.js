@@ -60,7 +60,7 @@ function notifyChannel(csrf, id, st) {
     : form('/settings/notify/email/secret', html`
         <label>${t('settings.smtp_host')}<input name="host" autocomplete="off" placeholder="smtp.example.com" required></label>
         <label>${t('settings.smtp_port')}
-          <select name="port"><option value="587">587 STARTTLS</option><option value="465">465 TLS</option></select>
+          <select name="port"><option value="587">${t('settings.smtp_port_587')}</option><option value="465">${t('settings.smtp_port_465')}</option></select>
         </label>
         <label>${t('settings.smtp_user')}<input name="user" autocomplete="off"></label>
         <label>${t('settings.smtp_pass')}<input type="password" name="pass" autocomplete="new-password"></label>
@@ -123,7 +123,7 @@ export function settingsPage({ csrf, owner = {}, sessions = [], telegramConnecte
     </section>` : ''}
 
     <section class="card">
-      ${channelTitle('telegram', 'Telegram')}
+      ${channelTitle('telegram', t('notify.channel.telegram'))}
       ${telegramBlock(csrf, telegramConnected, botUsername)}
       ${!telegramConnected && tgCode ? html`
         ${telegramStartUrl(botUsername, tgCode) ? outLink(telegramStartUrl(botUsername, tgCode), t('notify_setup.tg_open_bot')) : ''}
@@ -174,7 +174,7 @@ function showcaseChannel(id, events) {
       </label>`
     : html`<label>${t('settings.smtp_host')}<input autocomplete="off" placeholder="smtp.example.com"></label>
       <label>${t('settings.smtp_port')}
-        <select><option>587 STARTTLS</option><option>465 TLS</option></select>
+        <select><option>${t('settings.smtp_port_587')}</option><option>${t('settings.smtp_port_465')}</option></select>
       </label>
       <label>${t('settings.smtp_user')}<input autocomplete="off"></label>
       <label>${t('settings.smtp_pass')}<input type="password" autocomplete="off"></label>
@@ -217,7 +217,7 @@ export function showcaseSettings() {
         <p class="hint">${t('settings.2fa_hint')}</p>
       </section>
       <section class="card">
-        ${channelTitle('telegram', 'Telegram')}
+        ${channelTitle('telegram', t('notify.channel.telegram'))}
         <p class="muted">${t('settings.tg_none')}</p>
         <label>${t('settings.bot_token')} <input type="password" autocomplete="off"></label>
         <button class="btn primary" type="button">${t('settings.tg_connect')}</button>

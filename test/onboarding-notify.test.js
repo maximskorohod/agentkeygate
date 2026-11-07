@@ -40,7 +40,12 @@ async function fakes() {
   const sl = http.createServer((req, res) => {
     let body = '';
     req.on('data', (d) => { body += d; });
-    req.on('end', () => { slack.messages.push({ url: req.url, body }); res.statusCode = slack.status; res.end('ok'); });
+    // route(url) -> { status, delay, onHit } для отдельных адресов (гонка двух подключений)
+    req.on('end', () => {
+      slack.messages.push({ url: req.url, body });
+      const r = slack.route?.(req.url) || {};
+      Promise.resolve(r.onHit?.()).then(() => setTimeout(() => { res.statusCode = r.status ?? slack.status; res.end('ok'); }, r.delay || 0));
+    });
   });
   await Promise.all([new Promise((r) => tg.listen(0, '127.0.0.1', r)), new Promise((r) => sl.listen(0, '127.0.0.1', r))]);
   cleanup.push(async () => { for (const s of [tg, sl]) { s.close(); s.closeAllConnections?.(); } });
@@ -183,6 +188,27 @@ test('онбординг: Slack заменяется только при усп�
   await c.post('/welcome/notify/slack', { webhook: mkHook() });
   assert.equal(await c.app.ctx.vault.get('sys/slack_webhook'), good, 'рабочий адрес на месте');
   assert.equal(readChannelMeta(c.app.repo, 'slack').enabled, true);
+});
+
+test('Slack, гонка: неудачное подключение не затирает вебхук параллельного удачного; во время теста сейф не меняется', async () => {
+  const c = await boot();
+  await c.post('/setup', { step: '3', mode: 'skip' });
+  await c.get('/welcome');
+  const old = mkHook();
+  await c.post('/welcome/notify/slack', { webhook: old });
+  assert.equal(await c.app.ctx.vault.get('sys/slack_webhook'), old);
+  const bad = mkHook(); const good = mkHook();
+  const seen = [];
+  const vaultNow = (candidate) => async () => { seen.push((await c.app.ctx.vault.get('sys/slack_webhook')) === candidate); };
+  // неудачный отвечает позже удачного: прежний откат удалял бы адрес удачного
+  c.slack.route = (url) => (url === new URL(bad).pathname ? { status: 500, delay: 300, onHit: vaultNow(bad) } : url === new URL(good).pathname ? { status: 200, onHit: vaultNow(good) } : {});
+  const [rBad, rGood] = await Promise.all([c.post('/welcome/notify/slack', { webhook: bad }), c.post('/welcome/notify/slack', { webhook: good })]);
+  assert.equal(rBad.headers.get('location'), '/welcome');
+  assert.equal(rGood.headers.get('location'), '/welcome');
+  assert.deepEqual(seen, [false, false], 'на время теста кандидат в сейф не попадает');
+  assert.equal(await c.app.ctx.vault.get('sys/slack_webhook'), good, 'сохранён адрес удачного запроса');
+  const meta = readChannelMeta(c.app.repo, 'slack');
+  assert.equal(meta.enabled, true); assert.equal(meta.configured, true);
 });
 
 test('онбординг, Telegram: те же шаги; проверка завершает шаг', async () => {

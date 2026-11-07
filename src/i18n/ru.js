@@ -726,6 +726,8 @@ export default {
   'settings.slack_webhook': 'Адрес Incoming Webhook',
   'settings.smtp_host': 'SMTP-сервер',
   'settings.smtp_port': 'Порт и шифрование',
+  'settings.smtp_port_587': '587 STARTTLS',
+  'settings.smtp_port_465': '465 TLS',
   'settings.smtp_user': 'Логин',
   'settings.smtp_pass': 'Пароль',
   'settings.smtp_from': 'Адрес отправителя',

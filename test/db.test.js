@@ -489,19 +489,41 @@ test('статистика: вызовы и заявки по агенту и к
   assert.equal(repo.listCalls({ days: 1, agentId: 'другой' }).length, 0);
 });
 
-test('статистика: вызовы, закрытые фильтром, видны как ошибки с учётом агрегации', () => {
+test('статистика: вызовы, закрытые фильтром, считаются по countDenied, а не по агрегированному audit', () => {
   const { repo, now } = setup();
   seed(repo, now);
   repo.audit('agent:a1', 'proxy.call', 'GET bitrix24/crm.deal.list.json', { agent: 'a1', credential: 'c1', status: 200, ms: 5 });
-  // первая запись отказа без count, вторая — ещё 2 пропущенных перед ней; старая запись без status
-  repo.audit('agent:a1', 'proxy.denied', 'GET bitrix24/crm.contact.list.json', { agent: 'a1', credential: 'c1', denied_reason: 'method_not_allowed' });
-  repo.audit('agent:a1', 'proxy.denied', 'GET bitrix24/crm.contact.list.json', { agent: 'a1', credential: 'c1', denied_reason: 'query_not_allowed', status: 400, count: 2 });
+  // audit отказов агрегирован (одна запись), счётчик — каждый из четырёх
+  repo.audit('agent:a1', 'proxy.denied', 'GET bitrix24/crm.contact.list.json', { agent: 'a1', credential: 'c1', denied_reason: 'query_not_allowed', status: 400 });
+  for (let i = 0; i < 4; i++) repo.countDenied('a1', 'c1');
   const [row] = repo.callStats(1);
   assert.equal(row.calls, 5);
   assert.equal(row.errors, 4);
+  assert.ok(row.last_at > 0);
   const recent = repo.listCalls({ days: 1, limit: 5 });
-  assert.deepEqual(recent.map((r) => r.status), [400, 403, 200]);
+  assert.deepEqual(recent.map((r) => r.status), [400, 200]);
   assert.equal(recent[0].ms, null);
+});
+
+test('denied_counts: старые отказы из audit переносятся при первом открытии новой версией, счётчик переживает перезапуск', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-denied-'));
+  const file = path.join(dir, 'gw.db');
+  let db = openDb(file);
+  let repo = createRepo(db);
+  // прежняя версия: таблицы счётчика нет, отказы только в audit (вторая запись — ещё 2 пропущенных перед ней)
+  repo.audit('agent:a1', 'proxy.denied', 'GET x', { agent: 'a1', credential: 'c1', denied_reason: 'method_not_allowed' });
+  repo.audit('agent:a1', 'proxy.denied', 'GET x', { agent: 'a1', credential: 'c1', denied_reason: 'method_not_allowed', count: 2 });
+  db.exec('DROP TABLE denied_counts');
+  db.close();
+  db = openDb(file); repo = createRepo(db);
+  assert.equal(repo.callStats(1)[0].errors, 4, 'перенесено с учётом count: 1 + (1 + 2)');
+  repo.countDenied('a1', 'c1');
+  db.close();
+  // повторное открытие не переносит второй раз и не теряет новый отказ
+  db = openDb(file); repo = createRepo(db);
+  assert.equal(repo.callStats(1)[0].errors, 5);
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test('approveRequest (П-10): одобрение и пропуск вместе, второй раз и после срока — нет', () => {

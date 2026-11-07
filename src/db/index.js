@@ -34,7 +34,18 @@ export function openDb(path) {
       }
     })();
   }
+  const hadAudit = !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'audit'").get();
+  const hadDenied = !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'denied_counts'").get();
   db.exec(schema);
+  // Новая таблица счётчика отказов: прежние отказы переносятся из audit (с учётом агрегата count), статистика не обнуляется
+  if (hadAudit && !hadDenied) {
+    db.exec(`INSERT INTO denied_counts (agent_id, credential_id, minute, n, last_at)
+      SELECT json_extract(meta_json, '$.agent'), json_extract(meta_json, '$.credential'), at / 60,
+             sum(1 + coalesce(json_extract(meta_json, '$.count'), 0)), max(at)
+      FROM audit WHERE action = 'proxy.denied'
+        AND json_extract(meta_json, '$.agent') IS NOT NULL AND json_extract(meta_json, '$.credential') IS NOT NULL
+      GROUP BY 1, 2, 3`);
+  }
   // миграции для уже существующих баз
   const credCols = db.prepare('PRAGMA table_info(credentials)').all().map((c) => c.name);
   if (!credCols.includes('always_until')) db.exec('ALTER TABLE credentials ADD COLUMN always_until INTEGER;');

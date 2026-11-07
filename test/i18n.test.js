@@ -84,3 +84,14 @@ test('все ключи, которые использует код, есть в
   }
   assert.deepEqual(missing, []);
 });
+
+test('настройки: название Telegram и порты SMTP идут через t(), в разметке нет строк напрямую', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../src/web/views/settings.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /channelTitle\('telegram', '/);
+  assert.doesNotMatch(src, />\s*(587 STARTTLS|465 TLS)\s*</);
+  for (const k of ['settings.smtp_port_587', 'settings.smtp_port_465', 'notify.channel.telegram']) {
+    assert.ok(en[k] && ru[k], k);
+    assert.ok(src.includes(`t('${k}')`), k);
+  }
+});

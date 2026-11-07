@@ -255,12 +255,12 @@ export async function registerWeb(fastify, ctx) {
   }
 
   /** Тест канала с общим таймаутом. -> null при успехе, иначе код ошибки без текста (в нём может быть путь вебхука). */
-  async function testChannel(id) {
+  async function testChannel(id, candidate) {
     const ch = notify.channels?.find((c) => c.id === id);
     if (!ch) return 'not_configured';
     let timer;
     try {
-      await Promise.race([ch.test(), new Promise((_, rej) => { timer = setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'timeout' })), 12_000); })]);
+      await Promise.race([ch.test(candidate),new Promise((_, rej) => { timer = setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'timeout' })), 12_000); })]);
       return null;
     } catch (e) {
       const code = codeOf(e);
@@ -271,21 +271,23 @@ export async function registerWeb(fastify, ctx) {
 
   /**
    * Подключение Slack за один шаг: проверка адреса, тестовое сообщение, включение канала.
-   * Не дошло — прежняя настройка возвращается, нерабочий адрес не остаётся в сейфе. Вызывающий обязан проверить свежий код.
+   * Кандидат проверяется напрямую, в сейф попадает только после успешного теста: неудачный запрос ничего не трогает,
+   * и параллельный неудачный запрос не может затереть адрес удачного. Вызывающий обязан проверить свежий код.
    */
+  let slackSave = Promise.resolve();
   async function connectSlack(raw) {
     const chk = checkSlackWebhook(raw);
     if (!chk.ok) return { error: t(chk.error) };
-    const meta = readChannelMeta(repo, 'slack');
-    const previous = meta.configured ? await vault.get(NOTIFY_SECRET.slack) : null;
-    await vault.put(NOTIFY_SECRET.slack, chk.value);
-    const code = await testChannel('slack');
-    if (code) {
-      if (previous) await vault.put(NOTIFY_SECRET.slack, previous); else await vault.del(NOTIFY_SECRET.slack);
-      return { error: t('flash.notify_test_fail', { code }) };
-    }
-    writeChannelMeta(repo, 'slack', { ...meta, enabled: true, configured: true });
-    repo.audit('owner', 'notify.secret', 'slack', null);
+    const code = await testChannel('slack', chk.value);
+    if (code) return { error: t('flash.notify_test_fail', { code }) };
+    // Сейф и meta меняются одной очередью: два удачных запроса не перемешивают адрес одного с настройками другого
+    const save = slackSave.then(async () => {
+      await vault.put(NOTIFY_SECRET.slack, chk.value);
+      writeChannelMeta(repo, 'slack', { ...readChannelMeta(repo, 'slack'), enabled: true, configured: true });
+      repo.audit('owner', 'notify.secret', 'slack', null);
+    });
+    slackSave = save.catch(() => {});
+    await save;
     return {};
   }
 

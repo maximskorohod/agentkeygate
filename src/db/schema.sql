@@ -143,6 +143,18 @@ CREATE TABLE IF NOT EXISTS leases (
 );
 CREATE INDEX IF NOT EXISTS leases_exp ON leases(expires_at);
 
+-- Счётчик вызовов, закрытых фильтром (403/400), для «Активности»: каждый отказ, по минутам.
+-- audit proxy.denied пишется с агрегацией раз в минуту, его хвост живёт в памяти и теряется при перезапуске.
+CREATE TABLE IF NOT EXISTS denied_counts (
+  agent_id      TEXT NOT NULL,
+  credential_id TEXT NOT NULL,
+  minute        INTEGER NOT NULL,  -- unixepoch() / 60
+  n             INTEGER NOT NULL,
+  last_at       INTEGER NOT NULL,
+  PRIMARY KEY (agent_id, credential_id, minute)
+);
+CREATE INDEX IF NOT EXISTS denied_counts_minute ON denied_counts(minute);
+
 CREATE TABLE IF NOT EXISTS audit (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
   at        INTEGER NOT NULL DEFAULT (unixepoch()),

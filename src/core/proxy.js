@@ -161,6 +161,8 @@ export function createProxy({ repo, catalog, vault, grants, access, limits, logg
         if (qr) { reason = qr; status = qr === 'query_not_allowed' ? 400 : 403; }
       }
       if (reason) {
+        // Счётчик для «Активности» — каждый отказ; сбой статистики не меняет ответ агенту
+        try { repo.countDenied(agentId, credential.id); } catch (e) { logger.error({ err: e?.message, code: e?.code }, 'denied count failed'); }
         auditAggregated(`den:${agentId}:${credential.id}`, `agent:${agentId}`, 'proxy.denied', `${method} ${provider.slug}${maskPath(upstreamPath, credential)}`, { ...auditBase, denied_reason: reason, status });
         return fail(status, reason, status === 403 ? { allowed: flt.methods } : undefined);
       }
