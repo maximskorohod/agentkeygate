@@ -9,7 +9,7 @@ Use this skill to get short-lived access to a third-party API that the owner app
 
 ## Setup
 
-This plugin connects to the gateway through its bundled MCP server `agentkeygate`. The user sets the gateway address and the agent token in the plugin settings (`/plugin configure agentkeygate@agentkeygate`). If the tools below are missing, ask the user to configure the plugin. Do not look for API keys or tokens in files or in the environment.
+The gateway is connected as the MCP server `agentkeygate`. The user adds it once with `claude mcp add`, as described in the plugin README. If the tools below are missing, ask the user to connect their gateway. Do not look for API keys or tokens in files or in the environment.
 
 The server gives you four tools: `list_services`, `request_access`, `check_request` and `call`.
 

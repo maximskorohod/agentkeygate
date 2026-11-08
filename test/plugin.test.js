@@ -67,36 +67,31 @@ test('marketplace.json: name, owner и запись плагина с source', (
   assert.equal(mp.plugins[0].source, './plugins/agentkeygate');
 });
 
-test('plugin.json: name, версия из package.json, license, repository, userConfig', () => {
+test('plugin.json: name, версия из package.json, license, repository', () => {
   const pl = json('plugins/agentkeygate/.claude-plugin/plugin.json');
   const version = json('package.json').version;
   assert.equal(pl.name, 'agentkeygate');
   assert.equal(pl.version, version, 'версия плагина равна версии package.json');
   assert.equal(pl.license, 'Apache-2.0');
   assert.match(pl.repository, /github\.com\/maximskorohod\/agentkeygate/);
-  assert.ok(pl.userConfig.mcp_url.description.includes('https://your-domain/mcp'), 'описание mcp_url: полный адрес');
-  assert.equal(pl.userConfig.agent_token.sensitive, true, 'agent_token sensitive');
-  // Claude Code не принимает manifest без type, title и description у каждой настройки
-  for (const [k, v] of Object.entries(pl.userConfig)) {
-    for (const field of ['type', 'title', 'description']) assert.ok(v[field], `${k}.${field}`);
-  }
 });
 
-test('.mcp.json плагина: http-сервер с user_config, без настоящих значений', () => {
-  const mcpj = json('plugins/agentkeygate/.mcp.json');
-  const srv = mcpj.mcpServers.agentkeygate;
-  assert.equal(srv.type, 'http');
-  assert.equal(srv.url, '${user_config.mcp_url}');
-  assert.equal(srv.headers.Authorization, 'Bearer ${user_config.agent_token}');
-  const text = read('plugins/agentkeygate/.mcp.json');
-  assert.ok(!/gwa_[A-Za-z0-9_-]{10,}|https:\/\/[a-z0-9.-]+\/mcp/.test(text), 'нет настоящих адресов и токенов');
+// Каталог Anthropic отклоняет плагин, если url MCP-сервера содержит ${...}: у self-hosted шлюза фиксированного адреса нет,
+// поэтому плагин без .mcp.json и userConfig, шлюз подключается командой claude mcp add
+test('плагин без встроенного MCP-сервера и userConfig', () => {
+  const pl = json('plugins/agentkeygate/.claude-plugin/plugin.json');
+  assert.ok(!('userConfig' in pl), 'userConfig нет');
+  assert.ok(!('mcpServers' in pl), 'mcpServers нет');
+  assert.ok(!fs.existsSync(path.join(root, 'plugins/agentkeygate/.mcp.json')), '.mcp.json нет');
 });
 
-test('README плагина: не короче 40 слов, команды установки', () => {
+test('README плагина: не короче 40 слов, команды установки и подключения шлюза', () => {
   const readme = read('plugins/agentkeygate/README.md');
   assert.ok(readme.split(/\s+/).length >= 40, `слов: ${readme.split(/\s+/).length}`);
   assert.ok(readme.includes('claude plugin marketplace add maximskorohod/agentkeygate'));
   assert.ok(readme.includes('claude plugin install agentkeygate@agentkeygate'));
+  assert.ok(readme.includes('claude mcp add --transport http agentkeygate'), 'команда подключения шлюза');
+  assert.ok(!/gwa_[A-Za-z0-9_-]{10,}/.test(readme), 'нет настоящих токенов');
 });
 
 // Каталог Anthropic держит плагин, если навык читает ключ из окружения: в плагине навык работает только через MCP-инструменты

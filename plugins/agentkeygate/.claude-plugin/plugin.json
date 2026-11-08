@@ -11,20 +11,5 @@
   "icon": "./.claude-plugin/icon.png",
   "documentationUrl": "https://github.com/maximskorohod/agentkeygate#readme",
   "supportUrl": "https://github.com/maximskorohod/agentkeygate/issues",
-  "privacyPolicyUrl": "https://agentkeygate.com/privacy/",
-  "userConfig": {
-    "mcp_url": {
-      "type": "string",
-      "title": "Gateway MCP URL",
-      "description": "Full address of the gateway MCP endpoint, for example https://your-domain/mcp",
-      "required": true
-    },
-    "agent_token": {
-      "type": "string",
-      "title": "Agent token",
-      "description": "Agent token (gwa_...) created in the gateway web UI, shown once when the agent is created",
-      "required": true,
-      "sensitive": true
-    }
-  }
+  "privacyPolicyUrl": "https://agentkeygate.com/privacy/"
 }

@@ -1,21 +1,24 @@
 # AgentKeyGate plugin for Claude Code
 
-The plugin connects Claude Code to your self-hosted [AgentKeyGate](https://github.com/maximskorohod/agentkeygate) gateway over Streamable HTTP at `/mcp`. After the connection Claude Code sees the gateway tools: `list_services`, `request_access`, `check_request` and `call`. It asks for a time-limited pass instead of your API key, and the key itself never leaves the gateway. The plugin also ships the `agentkeygate` skill with step-by-step instructions for these tools. The skill reads no environment variables or files: the address and the token come only from the plugin settings.
+The plugin ships the `agentkeygate` skill: step-by-step instructions for the tools of your self-hosted [AgentKeyGate](https://github.com/maximskorohod/agentkeygate) gateway, `list_services`, `request_access`, `check_request` and `call`. With them Claude Code asks for a time-limited pass instead of your API key, and the key itself never leaves the gateway. The skill reads no environment variables or files.
+
+The gateway runs on your own server, so its address is different for every owner. The plugin does not bundle an MCP server: you connect your gateway once with `claude mcp add`.
 
 ## Install
 
-Add the marketplace, install the plugin, then set the two settings with `/plugin configure agentkeygate@agentkeygate` in Claude Code:
+Add the marketplace and install the plugin:
 
 ```bash
 claude plugin marketplace add maximskorohod/agentkeygate
 claude plugin install agentkeygate@agentkeygate
 ```
 
-Settings:
+Connect your gateway over Streamable HTTP at `/mcp`. Replace the address with your own and `<agent-token>` with the agent token (`gwa_...`) that the owner created in the gateway web UI under Agents. The token is shown once when the agent is created.
 
-- `mcp_url`: the full MCP address of your gateway, for example `https://your-domain/mcp`;
-- `agent_token`: the agent token (`gwa_...`) that the owner created in the gateway web UI under Agents. It is shown once when the agent is created. The value is marked sensitive and is sent as a Bearer authorization header.
+```bash
+claude mcp add --transport http agentkeygate https://your-domain/mcp --header "Authorization: Bearer <agent-token>"
+```
 
 To verify the installation, run `claude mcp list` and look for `agentkeygate`, then ask Claude Code to list the services available through agentkeygate.
 
-To remove the plugin, run `claude plugin uninstall agentkeygate` and revoke the agent in the gateway web UI.
+To remove it, run `claude plugin uninstall agentkeygate` and `claude mcp remove agentkeygate`, then revoke the agent in the gateway web UI.
