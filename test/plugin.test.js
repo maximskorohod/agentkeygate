@@ -71,7 +71,11 @@ test('plugin.json: name, версия из package.json, license, repository', (
   const pl = json('plugins/agentkeygate/.claude-plugin/plugin.json');
   const version = json('package.json').version;
   assert.equal(pl.name, 'agentkeygate');
-  assert.equal(pl.version, version, 'версия плагина равна версии package.json');
+  // у плагина своя нумерация (каталог Anthropic видит новую версию только по полю version), но не ниже продукта
+  const num = (v) => v.split('.').map(Number);
+  const [p, s] = [num(pl.version), num(version)];
+  const cmp = p[0] - s[0] || p[1] - s[1] || p[2] - s[2];
+  assert.ok(cmp >= 0, `версия плагина ${pl.version} не ниже версии package.json ${version}`);
   assert.equal(pl.license, 'Apache-2.0');
   assert.match(pl.repository, /github\.com\/maximskorohod\/agentkeygate/);
 });
